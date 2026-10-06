@@ -462,16 +462,15 @@ export default function HeroSection() {
                */}
               <div style={{ position: "relative", aspectRatio: "620 / 280" }}>
 
-                {/* Car photo — mix-blend-mode:screen erases the black background */}
+                {/* Car photo (transparent PNG) */}
                 <Image
-                  src="/car-cutout.jpg"
+                  src="/car-transparent.png"
                   alt="Silver McLaren supercar"
                   fill
                   priority
                   sizes="(max-width: 640px) 60vw, (max-width: 1024px) 45vw, 620px"
                   style={{
                     objectFit: "contain",
-                    mixBlendMode: "screen",   /* black → transparent on dark bg */
                   }}
                 />
 
