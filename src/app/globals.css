@@ -1,215 +1,220 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-
+/* ── Tailwind base (no @import url() for fonts — handled by next/font) ──────── */
 @import "tailwindcss";
 
+/* ── Design tokens ───────────────────────────────────────────────────────────── */
 :root {
-  --color-bg: #09090b;
-  --color-bg-secondary: #0f0f12;
-  --color-surface: #111115;
-  --color-surface-2: #1a1a20;
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-text-primary: #f4f4f5;
-  --color-text-secondary: #a1a1aa;
-  --color-text-muted: #52525b;
-  --color-accent: #45db7d;
-  --color-accent-dim: rgba(69, 219, 125, 0.12);
-  --color-accent-glow: rgba(69, 219, 125, 0.35);
-  --font-display: 'Outfit', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-mono: 'Space Grotesk', sans-serif;
+  /* Colours */
+  --color-bg:           #0a0a0c;
+  --color-bg-2:         #0f0f12;
+  --color-surface:      #111116;
+  --color-surface-2:    #1c1c22;
+  --color-border:       rgba(255, 255, 255, 0.07);
+  --color-border-2:     rgba(255, 255, 255, 0.12);
+  --color-text-primary: #f0f0f2;
+  --color-text-secondary: #7a7a85;
+  --color-text-muted:   #3a3a45;
+  --color-accent:       #3ddc84;          /* single accent — restrained green */
+  --color-accent-dim:   rgba(61,220,132,0.10);
+  --color-accent-glow:  rgba(61,220,132,0.28);
+
+  /* Fonts — CSS vars injected by next/font via HTML class variables */
+  --font-display: var(--font-display, 'Outfit', sans-serif);
+  --font-body:    var(--font-body,    'Inter',  sans-serif);
 }
 
+/* ── Reset ───────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; overflow-x: hidden; }
+html {
+  overflow-x: hidden;
+  /* do NOT use scroll-behavior:smooth — it fights Lenis/GSAP */
+}
 
 body {
   background-color: var(--color-bg);
   color: var(--color-text-primary);
   font-family: var(--font-body);
-  overflow-x: hidden;
+  /* overflow-x:clip blocks horizontal bar without affecting GSAP pin */
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--color-bg); }
-::-webkit-scrollbar-thumb { background: var(--color-surface-2); border-radius: 99px; }
+/* ── Scrollbar ───────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 3px; }
+::-webkit-scrollbar-track    { background: var(--color-bg); }
+::-webkit-scrollbar-thumb    { background: var(--color-surface-2); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-accent); }
-
 ::selection { background: var(--color-accent-dim); color: var(--color-accent); }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 9999;
-  opacity: 0.6;
-}
-
+/* ── Typography helpers ──────────────────────────────────────────────────────── */
 .font-display { font-family: var(--font-display); }
-.font-mono    { font-family: var(--font-mono); }
+.font-body    { font-family: var(--font-body); }
 .text-accent  { color: var(--color-accent); }
+.tabular-nums { font-variant-numeric: tabular-nums; }
 
-.gradient-text {
-  background: linear-gradient(135deg, #f4f4f5 0%, var(--color-accent) 60%, #3d8bcd 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* ── Headline char clip (GSAP animates y inside) ─────────────────────────────── */
+.char-wrap {
+  display: inline-block;
+  overflow: hidden;        /* clip mask for the yPercent slide */
+  line-height: 1.1;
+  vertical-align: bottom;
 }
-
-.stat-card {
-  position: relative;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  padding: 1.5rem 2rem;
-  overflow: hidden;
-  will-change: transform, opacity;
-  transition: border-color 0.3s ease, transform 0.3s ease;
-}
-.stat-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at top left, rgba(69, 219, 125, 0.05), transparent 60%);
-  pointer-events: none;
-}
-.stat-card:hover { border-color: rgba(69, 219, 125, 0.25); transform: translateY(-3px); }
-
-.stat-number {
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 700;
-  line-height: 1;
-  background: linear-gradient(135deg, #ffffff, var(--color-accent));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.hero-headline-char {
+  display: inline-block;
+  /* will-change added by GSAP just before animation, removed after */
 }
 
-.road-dashes {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 300%;
-  height: 3px;
-  transform: translateY(-50%);
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0px,
-    transparent 24px,
-    rgba(255,255,255,0.1) 24px,
-    rgba(255,255,255,0.1) 60px
-  );
-}
-
-.trail-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, transparent, var(--color-accent) 60%, #a8f5c8);
-  border-radius: 0 4px 4px 0;
-  will-change: width;
-}
-
-.cta-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.85rem 2rem;
-  background: var(--color-accent);
-  color: #09090b;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 0.9rem;
-  letter-spacing: 0.05em;
-  border-radius: 99px;
-  border: none;
-  cursor: pointer;
-  transition: box-shadow 0.3s ease, transform 0.2s ease;
-  will-change: transform;
-}
-.cta-btn:hover {
-  box-shadow: 0 0 32px rgba(69,219,125,0.45), 0 8px 24px rgba(0,0,0,0.4);
-  transform: translateY(-2px) scale(1.02);
-}
-
-.cta-btn-outline {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.85rem 2rem;
-  background: transparent;
-  color: var(--color-text-primary);
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 0.9rem;
-  letter-spacing: 0.05em;
-  border-radius: 99px;
-  border: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: border-color 0.3s ease, transform 0.2s ease, background 0.3s ease;
-}
-.cta-btn-outline:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); transform: translateY(-2px); }
-
+/* ── Navbar ──────────────────────────────────────────────────────────────────── */
 .navbar {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 100;
-  padding: 1.25rem 2rem;
+  padding: 1.125rem 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(180deg, rgba(9,9,11,0.96) 0%, transparent 100%);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border);
+  /* simple top-fade — no heavy blur */
+  background: linear-gradient(180deg, rgba(10,10,12,0.92) 0%, transparent 100%);
 }
 
-.cursor-glow {
-  position: fixed;
-  width: 500px; height: 500px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(69,219,125,0.05) 0%, transparent 70%);
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  z-index: 1;
-  will-change: transform;
-  transition: opacity 0.3s ease;
+/* ── Hero wrapper — overflow:clip stops horizontal bar during car travel ──────── */
+.hero-wrapper {
+  height: 100vh;
+  overflow: clip;          /* FIX P11: clip instead of hidden */
 }
 
-@keyframes float-particle {
-  0%   { opacity: 0; transform: translateY(0) scale(0.5); }
-  15%  { opacity: 0.8; }
-  85%  { opacity: 0.4; }
-  100% { opacity: 0; transform: translateY(-100px) scale(2); }
-}
-.particle {
+/* ── Road strip ──────────────────────────────────────────────────────────────── */
+.road-strip {
   position: absolute;
-  border-radius: 50%;
-  background: var(--color-accent);
-  animation: float-particle linear infinite;
-  will-change: transform, opacity;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--color-border-2);
 }
 
-@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
-.marquee-track { display: flex; animation: marquee 22s linear infinite; will-change: transform; }
-
-.hero-headline-char { display: inline-block; will-change: transform, opacity; }
-
-.glow-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  box-shadow: 0 0 12px var(--color-accent), 0 0 24px rgba(69,219,125,0.4);
+.road-lane {
+  position: relative;
+  width: 100%;
+  overflow: clip;
 }
 
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 12px var(--color-accent), 0 0 24px rgba(69,219,125,0.4); }
-  50% { box-shadow: 0 0 20px var(--color-accent), 0 0 40px rgba(69,219,125,0.6); }
+/* Center dashes */
+.road-dashes {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: repeating-linear-gradient(
+    90deg,
+    transparent       0px,
+    transparent       28px,
+    rgba(255,255,255,0.08) 28px,
+    rgba(255,255,255,0.08) 56px
+  );
 }
-.glow-dot { animation: pulse-glow 2s ease-in-out infinite; }
+
+/*
+ * FIX P3 + P8: Trail now uses scaleX (GPU composited) instead of width (layout).
+ * transform-origin: left ensures it expands from the left edge.
+ */
+.trail-bar {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  width: 100%;          /* full width at rest; GSAP controls scaleX 0→1 */
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg,
+    rgba(61,220,132,0)   0%,
+    rgba(61,220,132,0.6) 50%,
+    rgba(61,220,132,0.9) 100%
+  );
+  will-change: transform;   /* FIX P8: transform not width */
+}
+
+/* ── Stats row ───────────────────────────────────────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+@media (max-width: 640px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);  /* 2×2 on mobile */
+  }
+}
+
+.stat-item {
+  padding: 1.25rem 1.5rem;
+  border-right: 1px solid var(--color-border);
+  /* FIX P10: no permanent will-change — GSAP sets it just before animation */
+}
+.stat-item:last-child  { border-right: none; }
+.stat-item:nth-child(2):last-child { border-right: none; } /* mobile last in row */
+
+@media (max-width: 640px) {
+  .stat-item:nth-child(2) { border-right: none; }
+  .stat-item:nth-child(1),
+  .stat-item:nth-child(2) { border-bottom: 1px solid var(--color-border); }
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 3.5vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  margin-top: 0.375rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+  font-family: var(--font-body);
+  letter-spacing: 0.01em;
+}
+
+/* ── Ground shadow under car (CSS-only, no JS) ───────────────────────────────── */
+.car-shadow {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 75%;
+  height: 20px;
+  background: radial-gradient(ellipse at center,
+    rgba(0,0,0,0.55) 0%,
+    transparent      70%
+  );
+  filter: blur(4px);
+  pointer-events: none;
+}
+
+/* ── Scroll hint (minimal) ───────────────────────────────────────────────────── */
+@keyframes nudge-down {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(4px); }
+}
+.scroll-hint-arrow {
+  animation: nudge-down 2s ease-in-out infinite;
+}
+
+/* ── "Below hero" section — deliberately quiet ───────────────────────────────── */
+.below-hero {
+  background: var(--color-bg-2);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── Reduced motion: show final state immediately ────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .hero-headline-char,
+  .stat-item,
+  .hero-car-wrap,
+  .scroll-hint { opacity: 1 !important; transform: none !important; }
+}

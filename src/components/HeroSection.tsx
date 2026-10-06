@@ -1,218 +1,240 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import Image from "next/image";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-gsap.registerPlugin(ScrollTrigger);
+// FIX P6: register once at module scope is fine; guard against double-register
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger);
+}
 
-// ── Data ──────────────────────────────────────────────────────────────────────
-const HEADLINE = "W E L C O M E   I T Z F I Z Z";
+/* ─── Data ────────────────────────────────────────────────────────────────── */
+const HEADLINE_WORDS = ["W E L C O M E", "I T Z F I Z Z"];
 
 const STATS = [
-  { value: "99.9%", label: "Speed Boost", desc: "Lightning-fast performance", icon: "⚡" },
-  { value: "85+",   label: "Components",  desc: "Interactive UI elements",  icon: "🧩" },
-  { value: "100%",  label: "Responsive",  desc: "Every screen, flawlessly", icon: "📐" },
+  { value: "58%",  label: "Increase in pick-up point use" },
+  { value: "23%",  label: "Decrease in customer phone calls" },
+  { value: "27%",  label: "Increase in on-time deliveries" },
+  { value: "40%",  label: "Decrease in failed first attempts" },
 ];
 
-const NAV_LINKS = ["Features", "Showcase", "Pricing", "Docs"];
+const NAV_LINKS = ["Features", "Showcase", "Docs"];
 
-// ── Marquee items ─────────────────────────────────────────────────────────────
-const MARQUEE_ITEMS = [
-  "SCROLL DRIVEN", "GSAP POWERED", "ZERO REFLOW", "GPU ACCELERATED",
-  "ULTRA SMOOTH", "NEXT.JS 15", "TYPESCRIPT", "TAILWIND CSS",
-  "SCROLL DRIVEN", "GSAP POWERED", "ZERO REFLOW", "GPU ACCELERATED",
-  "ULTRA SMOOTH", "NEXT.JS 15", "TYPESCRIPT", "TAILWIND CSS",
-];
-
-// ── Component ─────────────────────────────────────────────────────────────────
+/* ─── Component ───────────────────────────────────────────────────────────── */
 export default function HeroSection() {
-  // Refs
-  const wrapperRef      = useRef<HTMLDivElement>(null);
-  const heroRef         = useRef<HTMLElement>(null);
-  const headlineRef     = useRef<HTMLHeadingElement>(null);
-  const statsRef        = useRef<HTMLDivElement>(null);
-  const badgeRef        = useRef<HTMLDivElement>(null);
-  const ctaRef          = useRef<HTMLDivElement>(null);
-  const carRef          = useRef<HTMLDivElement>(null);
-  const roadRef         = useRef<HTMLDivElement>(null);
-  const trailRef        = useRef<HTMLDivElement>(null);
-  const roadSectionRef  = useRef<HTMLDivElement>(null);
-  const scrollTextRef   = useRef<HTMLDivElement>(null);
-  const overlayRef      = useRef<HTMLDivElement>(null);
-  const cursorRef       = useRef<HTMLDivElement>(null);
-  const navRef          = useRef<HTMLElement>(null);
+  const wrapperRef    = useRef<HTMLDivElement>(null);
+  const navRef        = useRef<HTMLElement>(null);
+  const headlineRef   = useRef<HTMLDivElement>(null);
+  const statsRef      = useRef<HTMLDivElement>(null);
+  const carWrapRef    = useRef<HTMLDivElement>(null);
+  const trailRef      = useRef<HTMLDivElement>(null);
+  const roadRef       = useRef<HTMLDivElement>(null);
+  const scrollHintRef = useRef<HTMLDivElement>(null);
 
-  // ── Cursor glow ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const cursor = cursorRef.current;
-    if (!cursor) return;
-    const move = (e: MouseEvent) => {
-      gsap.to(cursor, { x: e.clientX, y: e.clientY, duration: 0.6, ease: "power2.out" });
-    };
-    window.addEventListener("mousemove", move);
-    return () => window.removeEventListener("mousemove", move);
-  }, []);
+  // FIX P5: useLayoutEffect so GSAP can measure layout before first paint
+  useLayoutEffect(() => {
+    // FIX P12a: guard SSR
+    if (typeof window === "undefined") return;
 
-  // ── Main animations ──────────────────────────────────────────────────────────
-  useEffect(() => {
+    // FIX P2: single ctx wrapping everything — ctx.revert() cleans all triggers
     const ctx = gsap.context(() => {
 
-      // ── 1. INTRO REVEAL ─────────────────────────────────────────────────────
-      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+      /* ── Reduced-motion: skip all animation, show final state ─────────────── */
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        // Elements are visible by default in CSS via @media rule — nothing to do
+        return;
+      }
 
-      // Navbar slide in
-      tl.from(navRef.current, {
-        yPercent: -100, opacity: 0, duration: 0.8,
+      /* ════════════════════════════════════════════════════════════════════════
+         1.  INTRO TIMELINE
+         ════════════════════════════════════════════════════════════════════════ */
+      const introTL = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+      // Navbar slide down
+      introTL.from(navRef.current, {
+        yPercent: -110, opacity: 0, duration: 0.7,
       }, 0);
 
-      // Badge pop
-      tl.from(badgeRef.current, {
-        scale: 0.6, opacity: 0, duration: 0.6, ease: "back.out(1.7)",
-      }, 0.3);
+      // Headline: each word's chars stagger up from clip (y offset inside .char-wrap)
+      const chars = headlineRef.current?.querySelectorAll<HTMLElement>(".hero-headline-char") ?? [];
+      gsap.set(chars, { willChange: "transform, opacity" });
 
-      // Headline: split each char and stagger them up
-      const chars = headlineRef.current?.querySelectorAll(".hero-headline-char") ?? [];
-      tl.from(chars, {
-        yPercent: 120,
+      introTL.from(chars, {
+        y: "100%",
         opacity: 0,
-        duration: 0.7,
-        stagger: 0.028,
+        filter: "blur(4px)",
+        duration: 0.65,
+        stagger: 0.04,
         ease: "power3.out",
-      }, 0.45);
+        clearProps: "filter",   // remove filter after animation (cheaper paint)
+        onComplete: () => {
+          // FIX P10: remove will-change after intro so GPU layer is freed
+          gsap.set(chars, { willChange: "auto" });
+        },
+      }, 0.25);
 
       // Stats stagger up
-      const cards = statsRef.current?.querySelectorAll(".stat-card") ?? [];
-      tl.from(cards, {
-        y: 40,
+      const statItems = statsRef.current?.querySelectorAll<HTMLElement>(".stat-item") ?? [];
+      gsap.set(statItems, { willChange: "transform, opacity" });
+
+      introTL.from(statItems, {
+        y: 20,
         opacity: 0,
-        duration: 0.7,
+        duration: 0.55,
         stagger: 0.15,
         ease: "power3.out",
-      }, 0.85);
-
-      // CTA buttons
-      tl.from(ctaRef.current, {
-        y: 24, opacity: 0, duration: 0.6, ease: "power3.out",
-      }, 1.1);
-
-      // Scroll hint
-      tl.from(scrollTextRef.current, {
-        opacity: 0, duration: 0.6,
-      }, 1.4);
-
-      // Car initial scale-up
-      tl.from(carRef.current, {
-        scale: 0.88, opacity: 0, x: -80, duration: 1.0, ease: "power3.out",
-      }, 0.6);
-
-      // Road slide in from below
-      tl.from(roadSectionRef.current, {
-        y: 40, opacity: 0, duration: 0.8, ease: "power3.out",
+        onComplete: () => gsap.set(statItems, { willChange: "auto" }),
       }, 0.55);
 
-      // ── 2. SCROLL-DRIVEN ANIMATIONS ─────────────────────────────────────────
-      // Pin the wrapper for a long scroll zone
-      ScrollTrigger.create({
-        trigger: wrapperRef.current,
-        start: "top top",
-        end: "+=250%",
-        pin: true,
-        anticipatePin: 1,
-        pinSpacing: true,
-      });
+      // Car fades + slides in last
+      gsap.set(carWrapRef.current, { willChange: "transform, opacity" });
+      introTL.from(carWrapRef.current, {
+        opacity: 0,
+        xPercent: -8,
+        duration: 0.9,
+        ease: "power3.out",
+      }, 0.4);
 
-      // Master scroll timeline tied to scrub
+      // Road + trail fade in
+      introTL.from(roadRef.current, {
+        opacity: 0, duration: 0.6, ease: "power2.out",
+      }, 0.35);
+
+      // Scroll hint
+      introTL.from(scrollHintRef.current, {
+        opacity: 0, duration: 0.5,
+      }, 1.4);
+
+      /* ════════════════════════════════════════════════════════════════════════
+         2.  SCROLL-DRIVEN ANIMATION
+         FIX P2: single ScrollTrigger owns the pin + scrub (not two separate ones)
+         ════════════════════════════════════════════════════════════════════════ */
+
+      // FIX P11: wrapper uses CSS overflow:clip; pin still works correctly
       const scrollTL = gsap.timeline({
         scrollTrigger: {
           trigger: wrapperRef.current,
           start: "top top",
-          end: "+=250%",
-          scrub: 1.2,
+          end: "+=220%",          // 220vh scroll travel
+          pin: true,              // FIX P2: pin owned by scrub TL, not separate create()
+          anticipatePin: 1,
+          pinSpacing: true,
+          scrub: 1,               // 1s lag — smooth but responsive
+          invalidateOnRefresh: true,
         },
       });
 
-      // Phase 1 (0–30%): headline + stats fade out while car accelerates right
-      scrollTL.to(headlineRef.current, {
-        yPercent: -30, opacity: 0, duration: 1,
-      }, 0);
+      /* ── matchMedia: shorter travel on mobile ─────────────────────────────── */
+      const mm = gsap.matchMedia();
 
-      scrollTL.to(statsRef.current, {
-        yPercent: -20, opacity: 0, duration: 1,
-      }, 0.05);
+      mm.add("(max-width: 767px)", () => {
+        // Mobile: car travels less, headline fades faster
+        scrollTL.to(headlineRef.current, {
+          yPercent: -25, opacity: 0, duration: 0.6, ease: "none",
+        }, 0);
+        scrollTL.to(statsRef.current, {
+          yPercent: -15, opacity: 0, duration: 0.6, ease: "none",
+        }, 0.05);
+        scrollTL.to(carWrapRef.current, {
+          xPercent: 100,       // exit right
+          duration: 1.0, ease: "none",
+        }, 0.1);
+        // FIX P3: scaleX instead of width
+        scrollTL.to(trailRef.current, {
+          scaleX: 1, duration: 1.0, ease: "none",
+        }, 0.1);
+      });
 
-      scrollTL.to(ctaRef.current, {
-        yPercent: -15, opacity: 0, duration: 0.8,
-      }, 0.08);
+      mm.add("(min-width: 768px)", () => {
+        // Desktop: headline + stats parallax out
+        scrollTL.to(headlineRef.current, {
+          yPercent: -30, opacity: 0, duration: 0.8, ease: "none",
+        }, 0);
+        scrollTL.to(statsRef.current, {
+          yPercent: -18, opacity: 0, duration: 0.8, ease: "none",
+        }, 0.06);
 
-      scrollTL.to(badgeRef.current, {
-        yPercent: -20, opacity: 0, duration: 0.7,
-      }, 0);
+        // Car: start off-screen left → cross → off-screen right
+        // Initial x set here so refresh restores it correctly
+        gsap.set(carWrapRef.current, { xPercent: -110 });
 
-      // Phase 1: car drives from left to center stage
-      scrollTL.to(carRef.current, {
-        x: "30vw", scale: 1.15, duration: 1.5, ease: "none",
-      }, 0);
+        scrollTL.to(carWrapRef.current, {
+          xPercent: 120,    // full off-screen right travel
+          duration: 2.0,
+          ease: "none",     // linear so scroll maps cleanly
+        }, 0);
 
-      // Trail fills up as car moves
-      scrollTL.to(trailRef.current, {
-        width: "100%", duration: 1.5, ease: "none",
-      }, 0);
+        // FIX P3: scaleX (GPU-composited) with transform-origin: left (set in CSS)
+        // Initial scaleX=0 set so refresh restores trail correctly
+        gsap.set(trailRef.current, { scaleX: 0 });
+        scrollTL.to(trailRef.current, {
+          scaleX: 1, duration: 2.0, ease: "none",
+        }, 0);
 
-      // Road dashes shift slightly
-      scrollTL.to(roadRef.current, {
-        x: "-5%", duration: 1.5, ease: "none",
-      }, 0);
+        // Scroll hint fades as soon as user starts scrolling
+        scrollTL.to(scrollHintRef.current, {
+          opacity: 0, duration: 0.2, ease: "none",
+        }, 0);
+      });
 
-      // Phase 2 (30–65%): car continues right, road zooms up
-      scrollTL.to(carRef.current, {
-        x: "70vw", scale: 1.25, duration: 1.8, ease: "none",
-      }, 1.5);
+      // FIX P8: after scroll completes, clean up will-change on car
+      ScrollTrigger.addEventListener("scrollEnd", () => {
+        gsap.set(carWrapRef.current, { willChange: "auto" });
+        gsap.set(trailRef.current,   { willChange: "auto" });
+      });
 
-      scrollTL.to(roadSectionRef.current, {
-        scaleY: 1.3, opacity: 0.6, duration: 1.8, ease: "none",
-      }, 1.5);
+      /* ── Refresh after car image loads so pin heights are correct ─────────── */
+      const carImg = carWrapRef.current?.querySelector("img");
+      if (carImg && !carImg.complete) {
+        carImg.addEventListener("load", () => ScrollTrigger.refresh(), { once: true });
+      } else {
+        // already cached — small defer so layout is settled
+        requestAnimationFrame(() => ScrollTrigger.refresh());
+      }
 
-      // Phase 3 (65–100%): car bursts off-screen right, overlay fades in
-      scrollTL.to(carRef.current, {
-        x: "130vw", scale: 1.1, opacity: 0, duration: 1.5, ease: "none",
-      }, 3.3);
+    }, wrapperRef); // FIX P2: scope = wrapperRef, all triggers cleaned on revert
 
-      scrollTL.to(overlayRef.current, {
-        opacity: 1, duration: 1.5, ease: "none",
-      }, 3.0);
-
-      scrollTL.to(trailRef.current, {
-        opacity: 0, duration: 0.8, ease: "none",
-      }, 3.5);
-
-    }, wrapperRef);
-
-    return () => ctx.revert();
+    return () => ctx.revert(); // cleans intro TL + all ScrollTriggers
   }, []);
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  /* ─── Render ──────────────────────────────────────────────────────────────── */
   return (
     <>
-      {/* Cursor Glow */}
-      <div ref={cursorRef} className="cursor-glow" aria-hidden="true" />
-
-      {/* Navbar */}
-      <nav ref={navRef} className="navbar" id="navbar" aria-label="Main navigation">
-        <div className="flex items-center gap-3">
-          <div className="glow-dot" />
-          <span className="font-display text-white font-bold text-lg tracking-tight">
-            ITZ<span className="text-accent">FIZZ</span>
+      {/* ── Navbar ──────────────────────────────────────────────────────────── */}
+      <nav
+        ref={navRef}
+        className="navbar"
+        id="navbar"
+        aria-label="Main navigation"
+      >
+        <a href="/" className="flex items-center gap-2.5 no-underline" aria-label="ITZFIZZ home">
+          {/* Simple dot accent — no pulsing glow DOM node */}
+          <span
+            aria-hidden="true"
+            style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: "var(--color-accent)",
+              display: "inline-block",
+              flexShrink: 0,
+            }}
+          />
+          <span
+            className="font-display font-semibold text-base tracking-tight"
+            style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-display)" }}
+          >
+            ITZ<span style={{ color: "var(--color-accent)" }}>FIZZ</span>
           </span>
-        </div>
+        </a>
 
-        <ul className="hidden md:flex items-center gap-8" role="list">
+        <ul className="hidden md:flex items-center gap-7" role="list">
           {NAV_LINKS.map((link) => (
             <li key={link}>
               <a
                 href={`#${link.toLowerCase()}`}
-                className="text-sm font-medium text-zinc-400 hover:text-white transition-colors duration-200"
+                className="text-sm font-medium transition-colors duration-200"
+                style={{ color: "var(--color-text-secondary)" }}
               >
                 {link}
               </a>
@@ -220,492 +242,399 @@ export default function HeroSection() {
           ))}
         </ul>
 
-        <button className="cta-btn text-sm" id="nav-cta-btn" aria-label="Get started">
-          Get Started →
-        </button>
+        {/* Nav CTA removed — kept minimal per scope requirement */}
+        <a
+          href="https://github.com/SumitWagdare/car-scroll-animation"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-medium tracking-wide transition-colors duration-200"
+          style={{ color: "var(--color-text-secondary)" }}
+          aria-label="View source on GitHub"
+        >
+          GitHub ↗
+        </a>
       </nav>
 
-      {/* ── Scroll Pin Wrapper ─────────────────────────────────────────────── */}
-      <div ref={wrapperRef} style={{ height: "100vh", overflow: "hidden" }}>
+      {/* ── Pin wrapper ─────────────────────────────────────────────────────── */}
+      {/* FIX P11: overflow:clip via class (not hidden) so pin works */}
+      <div ref={wrapperRef} className="hero-wrapper">
 
-        {/* ── Hero Section ──────────────────────────────────────────────────── */}
+        {/* ── Hero main ───────────────────────────────────────────────────── */}
         <main
-          ref={heroRef}
           id="hero"
-          className="relative w-full h-screen flex flex-col justify-between"
+          className="relative w-full h-screen flex flex-col"
           style={{ background: "var(--color-bg)" }}
           aria-label="Hero section"
         >
-          {/* Radial bg glow */}
+
+          {/* Subtle radial vignette behind car area — CSS only, no DOM node cost */}
           <div
-            className="absolute inset-0 pointer-events-none"
             aria-hidden="true"
             style={{
+              position: "absolute",
+              inset: 0,
               background:
-                "radial-gradient(ellipse 70% 50% at 50% 60%, rgba(69,219,125,0.07) 0%, transparent 65%)",
+                "radial-gradient(ellipse 80% 55% at 50% 65%, rgba(61,220,132,0.055) 0%, transparent 65%)",
+              pointerEvents: "none",
             }}
           />
 
-          {/* ── Top Content ─────────────────────────────────────────────────── */}
-          <div className="relative z-10 flex flex-col items-center pt-28 px-6 text-center">
-
-            {/* Badge */}
-            <div
-              ref={badgeRef}
-              id="hero-badge"
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-xs font-mono font-medium mb-6"
+          {/* ── Headline ──────────────────────────────────────────────────── */}
+          <div
+            ref={headlineRef}
+            className="relative z-10 flex flex-col items-center"
+            style={{
+              paddingTop: "clamp(5.5rem, 12vh, 9rem)",
+              paddingLeft: "1.5rem",
+              paddingRight: "1.5rem",
+            }}
+          >
+            <h1
+              id="hero-headline"
+              aria-label="Welcome ITZFIZZ"
               style={{
-                background: "var(--color-accent-dim)",
-                borderColor: "rgba(69,219,125,0.25)",
-                color: "var(--color-accent)",
+                fontFamily: "var(--font-display)",
+                fontSize: "clamp(1.8rem, 5.8vw, 5.5rem)",
+                fontWeight: 500,          // medium weight — restrained
+                letterSpacing: "0.42em",  // wide letter-spacing per spec
+                lineHeight: 1.05,
+                color: "var(--color-text-primary)",
+                textAlign: "center",
+                textTransform: "uppercase",
               }}
             >
-              <span className="glow-dot" style={{ width: 5, height: 5, animation: "none", boxShadow: "0 0 6px #45db7d" }} />
-              SCROLL-DRIVEN ANIMATION SHOWCASE
-            </div>
-
-            {/* Headline */}
-            <div className="overflow-hidden">
-              <h1
-                ref={headlineRef}
-                id="hero-headline"
-                className="font-display font-black tracking-widest uppercase leading-none"
-                style={{
-                  fontSize: "clamp(1.6rem, 5.5vw, 5rem)",
-                  color: "var(--color-text-primary)",
-                }}
-              >
-                {HEADLINE.split("").map((char, i) =>
-                  char === " " ? (
-                    <span key={i} style={{ display: "inline-block", width: "0.35em" }} />
-                  ) : (
-                    <span key={i} className="hero-headline-char" style={{ display: "inline-block" }}>
-                      {char}
-                    </span>
-                  )
-                )}
-              </h1>
-            </div>
-
-            {/* Sub-tagline */}
-            <p
-              className="mt-4 text-base md:text-lg max-w-xl font-light"
-              style={{ color: "var(--color-text-secondary)" }}
-            >
-              Premium scroll interactions crafted with{" "}
-              <span className="text-accent font-medium">GSAP ScrollTrigger</span> &amp;{" "}
-              <span className="text-white font-medium">Next.js</span>
-            </p>
+              {HEADLINE_WORDS.map((word, wi) => (
+                <span key={wi} style={{ display: "block" }}>
+                  {word.split("").map((char, ci) =>
+                    char === " " ? (
+                      // space: non-breaking, preserves letter-spacing rhythm
+                      <span
+                        key={`${wi}-${ci}`}
+                        aria-hidden="true"
+                        style={{ display: "inline-block", width: "0.42em" }}
+                      />
+                    ) : (
+                      // FIX P9: no <style jsx> — class set in globals.css
+                      <span key={`${wi}-${ci}`} className="char-wrap">
+                        <span className="hero-headline-char" aria-hidden={wi > 0 || ci > 0}>
+                          {char}
+                        </span>
+                      </span>
+                    )
+                  )}
+                </span>
+              ))}
+            </h1>
           </div>
 
-          {/* ── Road + Car Section ───────────────────────────────────────────── */}
+          {/* ── Road + Car (centre of screen) ─────────────────────────────── */}
           <div
-            ref={roadSectionRef}
-            id="road-section"
-            className="relative w-full"
+            ref={roadRef}
+            className="road-lane relative flex-1 flex items-end"
+            aria-hidden="true"
             style={{
-              height: "200px",
-              background: "linear-gradient(180deg, transparent 0%, #1a1a1a 30%, #141414 70%, #0c0c0c 100%)",
-              transformOrigin: "bottom center",
+              background:
+                "linear-gradient(180deg, transparent 0%, rgba(18,18,22,0.8) 50%, #121218 100%)",
             }}
-            aria-label="Car track animation"
           >
-            {/* Top fade */}
-            <div
-              className="absolute top-0 left-0 right-0 h-16 pointer-events-none"
-              style={{
-                background: "linear-gradient(180deg, var(--color-bg) 0%, transparent 100%)",
-              }}
-              aria-hidden="true"
-            />
-
             {/* Road surface */}
             <div
-              ref={roadRef}
-              className="absolute inset-0"
-              aria-hidden="true"
-              style={{ background: "#1a1a1a", overflow: "hidden" }}
-            >
-              {/* Trail */}
-              <div
-                ref={trailRef}
-                className="trail-bar"
-                aria-hidden="true"
-                style={{ opacity: 0.7 }}
-              />
-              {/* Dashes */}
-              <div className="road-dashes" aria-hidden="true" />
-            </div>
-
-            {/* ── Car ───────────────────────────────────────────────────────── */}
-            <div
-              ref={carRef}
-              id="hero-car"
-              className="absolute"
               style={{
-                bottom: "0px",
-                left: "-5%",
-                zIndex: 20,
+                position: "absolute",
+                bottom: 0, left: 0, right: 0,
+                height: "35%",
+                background:
+                  "linear-gradient(180deg, transparent 0%, #141418 40%, #111114 100%)",
+              }}
+            />
+
+            {/* Centre lane dashes */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "26%", left: 0, right: 0,
+                height: "1px",
+                background:
+                  "repeating-linear-gradient(90deg, transparent 0, transparent 28px, rgba(255,255,255,0.07) 28px, rgba(255,255,255,0.07) 56px)",
+              }}
+            />
+
+            {/* Trail bar — FIX P3: scaleX not width */}
+            <div
+              ref={trailRef}
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                bottom: "25%",
+                left: 0,
+                right: 0,
+                height: "2px",
+                transformOrigin: "left center",   /* expand from left */
+                background:
+                  "linear-gradient(90deg, transparent 0%, var(--color-accent) 60%, rgba(61,220,132,0.4) 100%)",
+                willChange: "transform",
+              }}
+            />
+
+            {/* ── Car wrap ──────────────────────────────────────────────── */}
+            <div
+              ref={carWrapRef}
+              className="hero-car-wrap"
+              style={{
+                position: "absolute",
+                bottom: "18%",
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "clamp(240px, 42vw, 620px)",
                 willChange: "transform, opacity",
               }}
-              aria-label="Animated sports car"
             >
-              {/* Speed lines behind car */}
-              <div
-                className="absolute right-full top-1/2 -translate-y-1/2 flex flex-col gap-2 pr-4 pointer-events-none"
-                aria-hidden="true"
-              >
-                {[0, 1, 2, 3].map((i) => (
-                  <div
-                    key={i}
-                    style={{
-                      width: `${60 - i * 10}px`,
-                      height: "2px",
-                      background: `rgba(69,219,125,${0.6 - i * 0.12})`,
-                      borderRadius: "99px",
-                      marginLeft: `${i * 8}px`,
-                    }}
-                  />
-                ))}
-              </div>
-
-              {/* Glow under car */}
-              <div
-                className="absolute bottom-0 left-1/2 -translate-x-1/2 pointer-events-none"
-                style={{
-                  width: "80%",
-                  height: "30px",
-                  background: "radial-gradient(ellipse, rgba(69,219,125,0.3) 0%, transparent 70%)",
-                  filter: "blur(6px)",
-                }}
-                aria-hidden="true"
-              />
+              {/* Ground shadow — pure CSS, no GSAP */}
+              <div className="car-shadow" aria-hidden="true" />
 
               <Image
-                src="/car.jpg"
-                alt="Luxury sports car driving across the hero section"
-                width={560}
-                height={200}
+                src="/car-cutout.jpg"
+                alt="Silver McLaren supercar driving across the road"
+                width={620}
+                height={280}
                 priority
+                sizes="(max-width: 640px) 60vw, (max-width: 1024px) 45vw, 620px"
                 style={{
+                  width: "100%",
+                  height: "auto",
                   objectFit: "contain",
-                  objectPosition: "bottom",
-                  maxHeight: "190px",
-                  width: "auto",
                   display: "block",
+                  /* mix-blend-mode screen makes black bg transparent on dark bg */
+                  mixBlendMode: "screen",
                 }}
               />
             </div>
+
+            {/* Road top edge line */}
+            <div
+              style={{
+                position: "absolute",
+                bottom: "35%", left: 0, right: 0,
+                height: "1px",
+                background: "var(--color-border)",
+              }}
+            />
           </div>
 
-          {/* ── Stats Row ──────────────────────────────────────────────────────── */}
+          {/* ── Stats row ─────────────────────────────────────────────────── */}
           <div
             ref={statsRef}
             id="hero-stats"
-            className="relative z-10 w-full px-6 pb-8"
+            className="relative z-10"
+            style={{
+              borderTop: "1px solid var(--color-border)",
+              background: "var(--color-bg)",
+            }}
           >
-            <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div
+              className="stats-row max-w-5xl mx-auto"
+              role="list"
+              aria-label="Impact metrics"
+            >
               {STATS.map((stat, i) => (
-                <article key={i} className="stat-card" aria-label={`${stat.value} ${stat.label}`}>
-                  <div className="flex items-start justify-between mb-2">
-                    <span className="text-2xl" aria-hidden="true">{stat.icon}</span>
-                    <span
-                      className="text-xs font-mono px-2 py-0.5 rounded-md"
-                      style={{
-                        background: "var(--color-accent-dim)",
-                        color: "var(--color-accent)",
-                        border: "1px solid rgba(69,219,125,0.2)",
-                      }}
-                    >
-                      LIVE
-                    </span>
-                  </div>
-                  <div className="stat-number">{stat.value}</div>
-                  <div
-                    className="font-display font-semibold text-base mt-1"
-                    style={{ color: "var(--color-text-primary)" }}
-                  >
-                    {stat.label}
-                  </div>
-                  <div className="text-xs mt-0.5" style={{ color: "var(--color-text-muted)" }}>
-                    {stat.desc}
-                  </div>
-                </article>
+                <div
+                  key={i}
+                  className="stat-item"
+                  role="listitem"
+                  aria-label={`${stat.value} ${stat.label}`}
+                >
+                  <div className="stat-value tabular-nums">{stat.value}</div>
+                  <div className="stat-label">{stat.label}</div>
+                </div>
               ))}
             </div>
           </div>
 
-          {/* ── CTA Buttons ───────────────────────────────────────────────────── */}
+          {/* ── Scroll hint (minimal arrow) ───────────────────────────────── */}
           <div
-            ref={ctaRef}
-            id="hero-cta"
-            className="relative z-10 flex items-center justify-center gap-4 pb-4 px-6"
-          >
-            <button id="hero-cta-primary" className="cta-btn" aria-label="Start scrolling to explore">
-              <span>Explore Demo</span>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-            <button id="hero-cta-secondary" className="cta-btn-outline" aria-label="View source code on GitHub">
-              View on GitHub
-            </button>
-          </div>
-
-          {/* ── Scroll Hint ───────────────────────────────────────────────────── */}
-          <div
-            ref={scrollTextRef}
+            ref={scrollHintRef}
             id="scroll-hint"
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pointer-events-none z-20"
-            aria-label="Scroll down hint"
+            className="scroll-hint absolute"
+            style={{
+              bottom: "calc(clamp(3.5rem,8vh,6rem) + 4px)",
+              left: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "0.375rem",
+              pointerEvents: "none",
+              zIndex: 20,
+            }}
+            aria-hidden="true"
           >
-            <span className="text-xs tracking-widest uppercase" style={{ color: "var(--color-text-muted)" }}>
-              Scroll to drive
+            <span
+              style={{
+                fontSize: "0.65rem",
+                letterSpacing: "0.15em",
+                textTransform: "uppercase",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              Scroll
             </span>
             <svg
-              width="16" height="20" viewBox="0 0 16 20" fill="none"
-              style={{ color: "var(--color-text-muted)", animation: "bounce 2s infinite" }}
+              className="scroll-hint-arrow"
+              width="14" height="14" viewBox="0 0 14 14" fill="none"
               aria-hidden="true"
             >
-              <rect x="1" y="1" width="14" height="18" rx="7" stroke="currentColor" strokeWidth="1.2"/>
-              <circle cx="8" cy="6" r="2" fill="currentColor" style={{ animation: "scrollDot 2s infinite" }} />
+              <path
+                d="M7 1v12M2 8l5 5 5-5"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ color: "var(--color-text-muted)" }}
+              />
             </svg>
           </div>
 
-          {/* ── Overlay for exit transition ───────────────────────────────────── */}
-          <div
-            ref={overlayRef}
-            className="absolute inset-0 pointer-events-none z-30"
-            aria-hidden="true"
-            style={{
-              opacity: 0,
-              background:
-                "radial-gradient(ellipse 80% 60% at 80% 50%, rgba(69,219,125,0.12) 0%, rgba(9,9,11,0.95) 60%)",
-            }}
-          />
         </main>
       </div>
 
-      {/* ── Marquee Banner ─────────────────────────────────────────────────────── */}
-      <section
-        aria-label="Technology marquee"
-        style={{
-          background: "var(--color-bg-secondary)",
-          borderTop: "1px solid var(--color-border)",
-          borderBottom: "1px solid var(--color-border)",
-          padding: "1rem 0",
-          overflow: "hidden",
-        }}
-      >
-        <div className="marquee-track" aria-hidden="true">
-          {MARQUEE_ITEMS.map((item, i) => (
-            <span
-              key={i}
-              className="font-mono font-medium whitespace-nowrap px-8 text-sm"
-              style={{ color: i % 4 === 0 ? "var(--color-accent)" : "var(--color-text-muted)" }}
-            >
-              {item} <span style={{ color: "var(--color-border)", margin: "0 8px" }}>✦</span>
-            </span>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Section Below Hero ─────────────────────────────────────────────────── */}
+      {/* ── Below-hero section — visually quiet ─────────────────────────────── */}
       <section
         id="features"
-        className="relative min-h-screen flex flex-col items-center justify-center px-6 py-32 text-center"
-        style={{ background: "var(--color-bg)" }}
+        className="below-hero"
         aria-labelledby="features-heading"
+        style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}
       >
-        {/* Background grid */}
         <div
-          className="absolute inset-0 pointer-events-none"
-          aria-hidden="true"
           style={{
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
+            maxWidth: "640px",
+            margin: "0 auto",
+            padding: "5rem 1.5rem",
+            textAlign: "center",
           }}
-        />
-
-        <div className="relative z-10 max-w-4xl mx-auto">
-          <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-xs font-mono font-medium mb-8"
+        >
+          <p
             style={{
-              background: "var(--color-surface)",
-              borderColor: "var(--color-border)",
-              color: "var(--color-text-secondary)",
+              fontSize: "0.7rem",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "var(--color-text-muted)",
+              marginBottom: "1.5rem",
+              fontFamily: "var(--font-body)",
             }}
           >
-            BUILT WITH GSAP SCROLLTRIGGER
-          </div>
+            Built with
+          </p>
 
           <h2
             id="features-heading"
-            className="font-display font-black leading-tight mb-6"
-            style={{ fontSize: "clamp(2.5rem, 6vw, 5.5rem)", color: "var(--color-text-primary)" }}
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "clamp(2rem, 5vw, 3.5rem)",
+              fontWeight: 600,
+              lineHeight: 1.1,
+              letterSpacing: "-0.01em",
+              color: "var(--color-text-primary)",
+              marginBottom: "1.25rem",
+            }}
           >
-            Scroll-driven{" "}
-            <span className="gradient-text">interactions</span>
-            <br />
-            that feel cinematic.
+            GSAP ScrollTrigger.<br />
+            <span style={{ color: "var(--color-accent)" }}>Scroll-scrubbed.</span>
           </h2>
 
-          <p className="text-lg max-w-2xl mx-auto mb-12" style={{ color: "var(--color-text-secondary)" }}>
-            This hero section uses <strong style={{ color: "white" }}>GSAP ScrollTrigger</strong> with{" "}
+          <p
+            style={{
+              fontSize: "0.9rem",
+              lineHeight: 1.7,
+              color: "var(--color-text-secondary)",
+              marginBottom: "2.5rem",
+              maxWidth: "480px",
+              margin: "0 auto 2.5rem",
+            }}
+          >
+            Animation progress is tied directly to scroll position via{" "}
             <code
-              className="px-2 py-0.5 rounded text-sm font-mono"
-              style={{ background: "var(--color-surface-2)", color: "var(--color-accent)" }}
+              style={{
+                fontFamily: "monospace",
+                fontSize: "0.8rem",
+                color: "var(--color-accent)",
+                background: "var(--color-accent-dim)",
+                padding: "0.1em 0.4em",
+                borderRadius: "4px",
+              }}
             >
-              scrub: 1.2
+              scrub: 1
+            </code>
+            . No autoplay, no timers during scroll. Only{" "}
+            <code style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--color-text-primary)" }}>
+              transform
             </code>{" "}
-            to interpolate animation progress directly from scroll offset — zero time-based autoplay,
-            zero layout reflows.
+            and{" "}
+            <code style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--color-text-primary)" }}>
+              opacity
+            </code>{" "}
+            animated — zero layout reflows.
           </p>
 
-          {/* Feature cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
-            {[
-              {
-                icon: "🎯",
-                title: "Scroll-Scrubbed",
-                desc: "Animation progress is 1:1 tied to scroll position via GSAP scrub, not timers.",
-              },
-              {
-                icon: "⚡",
-                title: "GPU Accelerated",
-                desc: "Every transform uses translate3d, scale & opacity — zero layout reflows.",
-              },
-              {
-                icon: "🎬",
-                title: "Staggered Reveals",
-                desc: "Headline chars, stat cards, and CTAs all animate in with GSAP stagger timelines.",
-              },
-              {
-                icon: "📌",
-                title: "Pinned Section",
-                desc: "The hero is pinned while scrolling 250vh, creating an immersive camera effect.",
-              },
-              {
-                icon: "🚗",
-                title: "Car Tracking",
-                desc: "The car image translates across the X axis in sync with scroll progress + trail fill.",
-              },
-              {
-                icon: "✨",
-                title: "Premium Polish",
-                desc: "Cursor glow, noise texture, animated particles, and a marquee banner complete the look.",
-              },
-            ].map((card, i) => (
-              <article
-                key={i}
-                className="stat-card text-left"
-                style={{ borderRadius: "20px" }}
-                aria-label={card.title}
+          {/* Minimal tech pills */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "0.5rem",
+              justifyContent: "center",
+            }}
+          >
+            {["Next.js 16", "TypeScript", "GSAP 3", "ScrollTrigger", "Tailwind CSS 4"].map((t) => (
+              <span
+                key={t}
+                style={{
+                  padding: "0.3rem 0.85rem",
+                  borderRadius: "99px",
+                  border: "1px solid var(--color-border-2)",
+                  fontSize: "0.72rem",
+                  fontFamily: "var(--font-body)",
+                  letterSpacing: "0.03em",
+                  color: "var(--color-text-secondary)",
+                }}
               >
-                <span className="text-3xl block mb-3" aria-hidden="true">{card.icon}</span>
-                <h3
-                  className="font-display font-bold text-base mb-2"
-                  style={{ color: "var(--color-text-primary)" }}
-                >
-                  {card.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--color-text-secondary)" }}>
-                  {card.desc}
-                </p>
-              </article>
+                {t}
+              </span>
             ))}
-          </div>
-
-          {/* Tech stack pills */}
-          <div className="flex flex-wrap justify-center gap-3 mt-16">
-            {["GSAP 3.12", "ScrollTrigger", "Next.js 15", "React 19", "TypeScript 5", "Tailwind CSS 4"].map(
-              (tech) => (
-                <span
-                  key={tech}
-                  className="px-4 py-2 rounded-full text-xs font-mono font-medium"
-                  style={{
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                    color: "var(--color-text-secondary)",
-                  }}
-                >
-                  {tech}
-                </span>
-              )
-            )}
           </div>
         </div>
       </section>
 
-      {/* ── Footer ─────────────────────────────────────────────────────────────── */}
+      {/* ── Footer ──────────────────────────────────────────────────────────── */}
       <footer
-        className="relative border-t py-12 text-center"
-        style={{
-          background: "var(--color-bg-secondary)",
-          borderColor: "var(--color-border)",
-        }}
         aria-label="Footer"
+        style={{
+          borderTop: "1px solid var(--color-border)",
+          padding: "2rem 1.5rem",
+          textAlign: "center",
+          background: "var(--color-bg)",
+        }}
       >
-        <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
-          Built for the{" "}
-          <span className="text-accent font-medium">ITZFIZZ</span> frontend assignment ·{" "}
-          <span style={{ color: "var(--color-text-secondary)" }}>
-            Next.js + GSAP ScrollTrigger + Tailwind CSS
-          </span>
-        </p>
-        <p className="text-xs mt-2" style={{ color: "var(--color-text-muted)" }}>
-          Inspired by{" "}
+        <p style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>
+          ITZFIZZ Frontend Assignment ·{" "}
           <a
             href="https://paraschaturvedi.github.io/car-scroll-animation"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-2 hover:text-accent transition-colors"
+            style={{ color: "var(--color-text-secondary)", textDecoration: "underline", textUnderlineOffset: "3px" }}
           >
-            paraschaturvedi.github.io/car-scroll-animation
+            Reference
+          </a>
+          {" "}·{" "}
+          <a
+            href="https://github.com/SumitWagdare/car-scroll-animation"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--color-text-secondary)", textDecoration: "underline", textUnderlineOffset: "3px" }}
+          >
+            GitHub
           </a>
         </p>
       </footer>
-
-      {/* Inline CSS for scroll-mouse animation */}
-      <style jsx global>{`
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(5px); }
-        }
-        @keyframes scrollDot {
-          0%, 100% { cy: 6; }
-          50% { cy: 12; }
-        }
-        .text-accent { color: var(--color-accent); }
-        .gradient-text {
-          background: linear-gradient(135deg, #f4f4f5 0%, #45db7d 60%, #3d8bcd 100%);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-        .stat-card {
-          position: relative;
-          background: var(--color-surface);
-          border: 1px solid var(--color-border);
-          border-radius: 16px;
-          padding: 1.5rem 2rem;
-          overflow: hidden;
-          will-change: transform, opacity;
-          transition: border-color 0.3s ease, transform 0.3s ease;
-        }
-        .stat-card:hover { border-color: rgba(69,219,125,0.25); transform: translateY(-3px); }
-        .stat-number {
-          font-family: var(--font-display);
-          font-size: clamp(2rem,4vw,3rem);
-          font-weight: 700;
-          line-height: 1;
-          background: linear-gradient(135deg,#ffffff,#45db7d);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-      `}</style>
     </>
   );
 }
